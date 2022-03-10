@@ -15,7 +15,10 @@ const ToDoSchema = new mongoose.Schema({
     time: {
         type: String,
     },
-    Location: {
+    location: {
+        type: String,
+    },
+    userId: {
         type: String,
     }
 }, { timestamps: true }
