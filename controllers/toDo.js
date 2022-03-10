@@ -1,8 +1,11 @@
 const ToDo = require("../models/ToDo");
 
 exports.postToDo = (req, res) => {
-    const { title, description, date, time } = req.body;
-    const newToDo = new ToDo(req.body);
+    const data = req.body;
+    const newToDo = new ToDo({
+        ...data,
+        userId: req.user.id
+    });
     newToDo.save((err, data)=> {
         if(err) {
             return res.status(400).json({
@@ -14,19 +17,22 @@ exports.postToDo = (req, res) => {
 }
 
 exports.getTodo = (req, res) => {
-    ToDo.find()
+    ToDo.find({userId:req.params.userId})
     .exec((err, data)=>{
         if(err) {
             return res.status(400).json({
                 error: err
             })
         }
-        res.json({data})
+        res.json(data)
     })
 }
 
 exports.deleteToDo = (req, res) => {
-    ToDo.findByIdAndRemove({_id:req.params.id})
+    ToDo.findByIdAndRemove({
+        _id:req.params.todoId,
+        userId:req.params.userId
+    })
     .then(()=> {
         res.status(200).json({
             message: "ToDo Deleted"
@@ -44,9 +50,13 @@ exports.updateToDo = (req, res) => {
         title:req.body.title,
         description:req.body.description,
         date:req.body.date,
-        time:req.body.time
+        time:req.body.time,
+        location:req.body.location,
     })
-    ToDo.updateOne({_id:req.params.id}, todo)
+    ToDo.updateOne({
+        _id:req.params.todoId,
+        userId:req.params.userId
+    }, todo)
     .then(()=> {
         res.status(200).json({
             data:todo,
