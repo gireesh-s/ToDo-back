@@ -1,52 +1,88 @@
 const User = require("../models/User");
-const CryptoJS = require("crypto-js");
 const jwt = require("jsonwebtoken");
+const expressJWT = require("express-jwt");
 
 // Register
-exports.registerUser = async (req, res) => {
-    const newUser = new User({
-        name: req.body.name,
-        email: req.body.email,
-        password: CryptoJS.AES.encrypt(
-            req.body.password,
-            process.env.PASS_SEC
-        ).toString(),
+exports.registerUser = (req, res) => {
+    console.log(req.body);
+    const { password } = req.body;
+    const user = new User(req.body);
+    user.setPassword(password);
+    user.save((err, user) => {
+        if (err) {
+        return res.status(400).json({
+            error: err,
+        });
+        }
+        user.password=undefined
+        res.status(200).json({
+        message: "Signup Successful",
+        user
+        });
     });
-    try {
-        const savedUser = await newUser.save();
-        res.status(200).json(savedUser)
-    } catch (err) {
-        res.status(500).json(err)
-    }
 }
 
 // LOGIN
-exports.loginUser = async ( req, res ) => {
-    try {
-        const user = await User.findOne({
-            email: req.body.email
+exports.loginUser = ( req, res ) => {
+    console.log(req.body);
+    const { email, password } = req.body;
+    User.findOne({ email }, (err, user) => {
+      if (err || !user) {
+        return res.status(400).json({
+          error: "Email not found",
         });
-        !user && res.status(400).json("Invalid User")
-        const hashedPassword = CryptoJS.AES.decrypt(
-            user.password,
-            process.env.PASS_SEC
-        );
-        const originalPassword = hashedPassword.toString(CryptoJS.enc.Utf8);
-        originalPassword !== req.body.password && res.status(400).json("Incorrect Password");
-
-        const accessToken = jwt.sign({
-            id: user._id,
-        },
-        process.env.JWT_SEC,
-        { expiresIn: "3d" }
-        )
-
-        const { password, ...others } = user._doc;
-        res.status(200).json({
-            ...others,
-            accessToken
-        })
-    } catch (err) {
-        res.status(400).json(err)
-    }
+      } else if (!user.validPassword(password, user.salt, user.password)) {
+        return res.status(401).json({
+          error: "Email and Password doesn't match",
+        });
+      }
+      // create token
+      const token = jwt.sign({ _id: user._id }, process.env.JWT_SEC);
+  
+      // create cookie
+      res.cookie("t", token, { expiresIn: new Date() + 9999 });
+      user.password = undefined;
+      user.salt = undefined;
+      res.status(200).json({
+        message: "Login successful",
+        token,
+        user: user,
+      });
+    });
 }
+
+//User Signout
+exports.logOutUser = (req, res) => {
+    res.clearCookie("t");
+    return res.json({
+        message: "Signout successfull",
+    });
+};
+
+exports.userById = (req, res, next, id) => {
+  User.findById(id).exec((err, user) => {
+    if (err || !user) {
+      return res.status(400).json({
+        error: "User not found",
+      });
+    }
+    req.user = user;
+    next();
+  });
+};
+
+exports.requireSignIn = expressJWT({
+  secret: "todoproject",
+  algorithms: ["HS256"],
+  userProperty: "auth",
+});
+
+exports.isAuth = (req, res, next) => {
+  let user = req.user && req.auth && req.user._id == req.auth._id;
+  if (!user) {
+    return res.status(403).json({
+      error: "Access Denied",
+    });
+  }
+  next();
+};
