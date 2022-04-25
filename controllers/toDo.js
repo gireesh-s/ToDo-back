@@ -12,7 +12,7 @@ exports.postToDo = (req, res) => {
                 error: err
             })
         }
-        res.json({data})
+        res.json(data)
     })
 }
 
@@ -68,3 +68,15 @@ exports.updateToDo = (req, res) => {
         })
     })
 }
+
+exports.todoById = (req, res, next, id) => {
+    ToDo.findById(id).exec((err, todo) => {
+      if (err || !todo) {
+        return res.status(400).json({
+          error: "ToDo not found",
+        });
+      }
+      req.todo = todo;
+      next();
+    });
+  };

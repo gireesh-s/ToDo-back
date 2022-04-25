@@ -1,10 +1,13 @@
 const express = require("express");
 const dotenv = require("dotenv");
 const mongoose = require("mongoose");
-const cors = require("cors")
+const morgan = require("morgan");
+const cors = require("cors");
+const cookieParser = require("cookie-parser")
 const app = express();
 const ToDoRoutes = require("./routes/toDo");
-const authRoutes = require("./routes/auth")
+const authRoutes = require("./routes/auth");
+const userRoutes = require("./routes/user");
 
 dotenv.config();
 
@@ -16,10 +19,13 @@ mongoose.connect(
     console.log(err)
 })
 
+app.use(morgan("dev"))
 app.use(cors())
 app.use(express.json());
+app.use(cookieParser());
 app.use("/api", ToDoRoutes);
-app.use("/api", authRoutes)
+app.use("/api", authRoutes);
+app.use("/api", userRoutes);
 
 const PORT = process.env.PORT || 5000
 app.listen( PORT, () => {
