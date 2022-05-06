@@ -1,6 +1,8 @@
 const User = require("../models/User");
 const jwt = require("jsonwebtoken");
 const expressJWT = require("express-jwt");
+const crypto = require("crypto");
+const _ = require("lodash");
 
 // Register
 exports.registerUser = (req, res) => {
@@ -85,4 +87,40 @@ exports.isAuth = (req, res, next) => {
     });
   }
   next();
+};
+
+exports.passwordChange = (req, res) => {
+  const { email, password, newPassword } = req.body;
+  User.findOne({ _id: req.user._id, email }, (err, user) => {
+    if (err || !user) {
+      return res.status(400).json({
+        error: "User not found",
+      });
+    } else if (!user.validPassword(password, user.salt, user.password)) {
+      return res.status(401).json({
+        error: "Please enter your current valid password",
+      });
+    }
+    const obj = {
+      password: crypto
+        .pbkdf2Sync(newPassword, user.salt, 1000, 64, `sha512`)
+        .toString(`hex`),
+    };
+
+    user = _.extend(user, obj);
+    user.save((error, newUser) => {
+      if (error) {
+        return res.status(400).json({
+          error: err,
+        });
+      }
+      newUser.password = undefined;
+      newUser.salt = undefined;
+      newUser.photo = undefined;
+      res.status(200).json({
+        message: "Password successfully updated",
+        newUser,
+      });
+    });
+  });
 };
