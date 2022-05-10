@@ -28,6 +28,11 @@ exports.getTodo = (req, res) => {
     })
 }
 
+// Read one Todo
+exports.readTodo = (req, res) => {
+    return res.json(req.todo);
+};
+
 exports.deleteToDo = (req, res) => {
     ToDo.findByIdAndRemove({
         _id:req.params.todoId,
@@ -45,27 +50,18 @@ exports.deleteToDo = (req, res) => {
 }
 
 exports.updateToDo = (req, res) => {
-    const todo = new ToDo({
-        _id:req.params.id,
-        title:req.body.title,
-        description:req.body.description,
-        date:req.body.date,
-        time:req.body.time,
-        location:req.body.location,
-    })
-    ToDo.updateOne({
+    ToDo.findOneAndUpdate({
         _id:req.params.todoId,
         userId:req.params.userId
-    }, todo)
-    .then(()=> {
-        res.status(200).json({
-            data:todo,
-            message:"ToDo Updated"
-        })
-    }).catch((err)=>{
-        res.status(400).json({
-            error:err
-        })
+    }, {
+        $set: req.body
+    }).exec((err, data)=>{
+        if(err) {
+            return res.status(400).json({
+                error: err
+            })
+        }
+        res.status(200).json(data)
     })
 }
 
